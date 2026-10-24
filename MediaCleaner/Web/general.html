@@ -144,6 +144,33 @@
             display: flex;
             align-items: flex-end;
             justify-content: flex-start;
+            gap: .5em;
+            flex-wrap: wrap;
+        }
+
+        #MediaCleanerConfigPage .mediaCleanerScheduleControls {
+            display: flex;
+            align-items: flex-end;
+            gap: .75em;
+            flex-wrap: wrap;
+            grid-column: 1 / -1;
+        }
+
+        #MediaCleanerConfigPage .mediaCleanerScheduleControls label {
+            display: flex;
+            flex-direction: column;
+            gap: .25em;
+        }
+
+        #MediaCleanerConfigPage .mediaCleanerScheduleControls input,
+        #MediaCleanerConfigPage .mediaCleanerScheduleControls select {
+            min-height: 2.5em;
+        }
+
+        #MediaCleanerConfigPage .mediaCleanerScheduleHelp {
+            grid-column: 1 / -1;
+            margin: 0;
+            opacity: .75;
         }
 
         #MediaCleanerConfigPage .mediaCleanerRuleTitle {
@@ -638,11 +665,30 @@
                         <p id="MediaCleanerWebClientInjectionState" class="mediaCleanerOverviewValue">Loading...</p>
                     </div>
                     <div class="mediaCleanerOverviewActions">
-                        <button is="emby-button" type="button" id="MediaCleanerScheduledTasksLink" class="emby-button mediaCleanerTextButton" hidden="hidden">
+                        <button is="emby-button" type="button" id="MediaCleanerRunNow" class="raised button-submit emby-button" disabled="disabled">Clean up now</button>
+                        <button is="emby-button" type="button" id="MediaCleanerScheduledTasksLink" class="emby-button mediaCleanerTextButton">
                             <span class="material-icons schedule" aria-hidden="true"></span>
-                            <span>Open Scheduled Tasks</span>
+                            <span>Advanced schedule</span>
                         </button>
                     </div>
+                    <div class="mediaCleanerScheduleControls">
+                        <label>Run cleanup
+                            <select id="MediaCleanerScheduleMode" disabled="disabled">
+                                <option value="interval">At a set interval</option>
+                                <option value="daily">Daily at a set time</option>
+                                <option value="custom">Custom Jellyfin schedule</option>
+                            </select>
+                        </label>
+                        <label id="MediaCleanerIntervalField">Every (minutes)
+                            <input id="MediaCleanerIntervalMinutes" type="number" min="5" max="10080" step="1" value="60" disabled="disabled">
+                        </label>
+                        <label id="MediaCleanerDailyField" hidden="hidden">Server local time
+                            <input id="MediaCleanerDailyTime" type="time" value="01:00" disabled="disabled">
+                        </label>
+                        <button is="emby-button" type="button" id="MediaCleanerSaveSchedule" class="raised emby-button" disabled="disabled">Save schedule</button>
+                    </div>
+                    <p class="mediaCleanerScheduleHelp">The schedule uses your Jellyfin server's local time. Clean up now uses your saved rules. Saving a schedule replaces this task's existing triggers.</p>
+                    <p id="MediaCleanerScheduleMessage" class="mediaCleanerScheduleHelp" role="status" aria-live="polite"></p>
                 </section>
 
                 <div id="MediaCleanerMigrationReview" class="mediaCleanerMigrationReview hide" role="status" aria-live="polite">

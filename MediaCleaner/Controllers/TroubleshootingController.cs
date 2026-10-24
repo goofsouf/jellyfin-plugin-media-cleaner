@@ -308,16 +308,28 @@ public class TroubleshootingController(
     private static DateTime NextDailyRunUtc(long timeOfDayTicks, DateTime nowUtc)
     {
         var timeOfDay = TimeOfDay(timeOfDayTicks);
-        var next = nowUtc.Date + timeOfDay;
-        return next <= nowUtc ? next.AddDays(1) : next;
+        var nowLocal = nowUtc.ToLocalTime();
+        var nextLocal = nowLocal.Date + timeOfDay;
+        if (nextLocal <= nowLocal)
+        {
+            nextLocal = nextLocal.AddDays(1);
+        }
+
+        return nextLocal.ToUniversalTime();
     }
 
     private static DateTime NextWeeklyRunUtc(DayOfWeek? dayOfWeek, long timeOfDayTicks, DateTime nowUtc)
     {
-        var targetDay = dayOfWeek ?? nowUtc.DayOfWeek;
-        var daysUntilTarget = ((int)targetDay - (int)nowUtc.DayOfWeek + 7) % 7;
-        var next = nowUtc.Date.AddDays(daysUntilTarget) + TimeOfDay(timeOfDayTicks);
-        return next <= nowUtc ? next.AddDays(7) : next;
+        var nowLocal = nowUtc.ToLocalTime();
+        var targetDay = dayOfWeek ?? nowLocal.DayOfWeek;
+        var daysUntilTarget = ((int)targetDay - (int)nowLocal.DayOfWeek + 7) % 7;
+        var nextLocal = nowLocal.Date.AddDays(daysUntilTarget) + TimeOfDay(timeOfDayTicks);
+        if (nextLocal <= nowLocal)
+        {
+            nextLocal = nextLocal.AddDays(7);
+        }
+
+        return nextLocal.ToUniversalTime();
     }
 
     private static TimeSpan TimeOfDay(long ticks) =>

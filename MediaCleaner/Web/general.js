@@ -82,6 +82,10 @@ export default function (view, params) {
         openScheduledTasks()
     })
 
+    view.querySelector('#MediaCleanerScheduleMode').addEventListener('change', () => updateScheduleFields(view))
+    view.querySelector('#MediaCleanerSaveSchedule').addEventListener('click', () => saveCleanupSchedule(view))
+    view.querySelector('#MediaCleanerRunNow').addEventListener('click', () => runCleanupNow(view))
+
     view.querySelector('#MediaCleanerBackupConfig').addEventListener('click', function (e) {
         e.preventDefault()
         downloadConfigBackup(e.currentTarget)
@@ -106,6 +110,7 @@ function onViewShow(commons) {
     page._favoriteScopesByRuleId = {}
     page._playbackScopesByRuleId = {}
     page._mediaCleanerStatus = null
+    page._mediaCleanerTask = null
     page._mediaCleanerMigrationReviewRequired = false
     page._savedRulesSnapshot = rulesSnapshot([])
     Promise.all([
@@ -116,11 +121,16 @@ function onViewShow(commons) {
             console.warn('[MediaCleaner] Could not load cleanup status', error)
             return null
         }),
-    ]).then(([config, users, virtualFolders, status]) => {
+        getCleanupTask().catch(error => {
+            console.warn('[MediaCleaner] Could not load cleanup task', error)
+            return null
+        }),
+    ]).then(([config, users, virtualFolders, status, task]) => {
         page._mediaCleanerUsers = normalizeUsers(users)
         page._mediaCleanerLocations = normalizeLocations(virtualFolders)
         page._mediaCleanerRules = normalizeRules(config)
         page._mediaCleanerStatus = status
+        page._mediaCleanerTask = task
         page._mediaCleanerMigrationReviewRequired = Number(config.ConfigVersion) < 2 && page._mediaCleanerRules.length > 0
         page._expandedRuleId = requestedRuleId && page._mediaCleanerRules.some(rule => rule.Id === requestedRuleId)
             ? requestedRuleId
@@ -130,6 +140,7 @@ function onViewShow(commons) {
         updateMigrationReview(page)
         renderRules(page)
         renderOverview(page)
+        renderSchedule(page)
         scrollToRuleCard(page, page._expandedRuleId)
         Dashboard.hideLoadingMsg()
     })
@@ -251,7 +262,7 @@ function renderOverview(page) {
         setOverviewValue(page, '#MediaCleanerTaskState', 'Unknown', true)
         setOverviewValue(page, '#MediaCleanerLeavingSoonState', 'Unknown', true)
         setOverviewValue(page, '#MediaCleanerWebClientInjectionState', 'Unknown', true)
-        setScheduledTasksLinkVisible(page, false)
+        updateRunNowButton(page)
         return
     }
 
@@ -291,7 +302,7 @@ function renderOverview(page) {
                 ? `Install failed: ${injectionError || 'the web directory could not be updated'}${injectionPath ? ` (${injectionPath})` : ''}`
                 : 'Not checked'
     setOverviewValue(page, '#MediaCleanerWebClientInjectionState', injectionText, !injectionInstalled)
-    setScheduledTasksLinkVisible(page, scheduledTaskAvailableValue === false || !isValidDateValue(nextRunUtc))
+    updateRunNowButton(page)
 
     const taskState = !scheduledTaskAvailable
         ? 'Media Cleaner scheduled task is not registered.'
@@ -309,12 +320,6 @@ function setOverviewValue(page, selector, text, isWarning = false) {
     if (!element) return
     element.textContent = text
     element.classList.toggle('mediaCleanerOverviewValue-warning', isWarning)
-}
-
-function setScheduledTasksLinkVisible(page, isVisible) {
-    const button = page.querySelector('#MediaCleanerScheduledTasksLink')
-    if (!button) return
-    button.hidden = !isVisible
 }
 
 function countActiveCleanupRules(rules) {
@@ -347,6 +352,152 @@ function getMediaCleanerStatus() {
     }
 
     return ApiClient.fetch(request).then(normalizeJsonResponse)
+}
+
+const ticksPerMinute = 600000000
+
+async function getCleanupTask() {
+    const tasks = normalizeJsonResponse(await ApiClient.fetch({
+        url: ApiClient.getUrl('ScheduledTasks'),
+        type: 'GET',
+    }))
+    return Array.isArray(tasks) ? tasks.find(task =>
+        readResponseValue(task, 'Key', 'key') === 'MediaCleanup') || null : null
+}
+
+function renderSchedule(page) {
+    const task = page._mediaCleanerTask
+    const mode = page.querySelector('#MediaCleanerScheduleMode')
+    const interval = page.querySelector('#MediaCleanerIntervalMinutes')
+    const daily = page.querySelector('#MediaCleanerDailyTime')
+    const save = page.querySelector('#MediaCleanerSaveSchedule')
+    mode.disabled = !task
+    interval.disabled = !task
+    daily.disabled = !task
+    save.disabled = !task
+    if (!task) {
+        setScheduleMessage(page, 'Cleanup task unavailable. Check Jellyfin Scheduled Tasks.')
+        return
+    }
+
+    const triggers = readResponseValue(task, 'Triggers', 'triggers') || []
+    const trigger = triggers.length === 1 ? triggers[0] : null
+    const type = trigger && readResponseValue(trigger, 'Type', 'type')
+    if (type === 'IntervalTrigger' || type === 2) {
+        const minutes = Number(readResponseValue(trigger, 'IntervalTicks', 'intervalTicks')) / ticksPerMinute
+        if (Number.isInteger(minutes) && minutes >= 5 && minutes <= 10080) {
+            mode.value = 'interval'
+            interval.value = String(minutes)
+        } else {
+            mode.value = 'custom'
+        }
+    } else if (type === 'DailyTrigger' || type === 0) {
+        const minutes = Number(readResponseValue(trigger, 'TimeOfDayTicks', 'timeOfDayTicks')) / ticksPerMinute
+        if (Number.isInteger(minutes) && minutes >= 0 && minutes < 1440) {
+            mode.value = 'daily'
+            daily.value = `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`
+        } else {
+            mode.value = 'custom'
+        }
+    } else {
+        mode.value = 'custom'
+    }
+    updateScheduleFields(page)
+}
+
+function updateScheduleFields(page) {
+    const mode = page.querySelector('#MediaCleanerScheduleMode').value
+    page.querySelector('#MediaCleanerIntervalField').hidden = mode !== 'interval'
+    page.querySelector('#MediaCleanerDailyField').hidden = mode !== 'daily'
+    page.querySelector('#MediaCleanerSaveSchedule').disabled = !page._mediaCleanerTask || mode === 'custom'
+}
+
+function setScheduleMessage(page, message) {
+    page.querySelector('#MediaCleanerScheduleMessage').textContent = message
+}
+
+function updateRunNowButton(page) {
+    const state = page._mediaCleanerTask && readResponseValue(page._mediaCleanerTask, 'State', 'state')
+    page.querySelector('#MediaCleanerRunNow').disabled = !page._mediaCleanerTask || state === 'Running' || state === 2
+}
+
+async function refreshCleanupTask(page) {
+    const [task, status] = await Promise.all([getCleanupTask(), getMediaCleanerStatus()])
+    page._mediaCleanerTask = task
+    page._mediaCleanerStatus = status
+    renderOverview(page)
+    renderSchedule(page)
+}
+
+async function saveCleanupSchedule(page) {
+    const task = page._mediaCleanerTask
+    if (!task) return
+    const mode = page.querySelector('#MediaCleanerScheduleMode').value
+    let trigger
+    if (mode === 'interval') {
+        const minutes = Number(page.querySelector('#MediaCleanerIntervalMinutes').value)
+        if (!Number.isInteger(minutes) || minutes < 5 || minutes > 10080) {
+            setScheduleMessage(page, 'Enter an interval from 5 to 10080 minutes.')
+            return
+        }
+        trigger = { Type: 'IntervalTrigger', IntervalTicks: minutes * ticksPerMinute }
+    } else if (mode === 'daily') {
+        const time = page.querySelector('#MediaCleanerDailyTime').value
+        if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+            setScheduleMessage(page, 'Enter a valid server local time.')
+            return
+        }
+        const [hours, minutes] = time.split(':').map(Number)
+        trigger = { Type: 'DailyTrigger', TimeOfDayTicks: (hours * 60 + minutes) * ticksPerMinute }
+    } else {
+        return
+    }
+
+    const button = page.querySelector('#MediaCleanerSaveSchedule')
+    button.disabled = true
+    setScheduleMessage(page, 'Saving schedule...')
+    try {
+        await ApiClient.fetch({
+            url: ApiClient.getUrl(`ScheduledTasks/${encodeURIComponent(readResponseValue(task, 'Id', 'id'))}/Triggers`),
+            type: 'POST',
+            data: JSON.stringify([trigger]),
+            contentType: 'application/json',
+        })
+        await refreshCleanupTask(page)
+        setScheduleMessage(page, 'Schedule saved.')
+    } catch (error) {
+        console.error('[MediaCleaner] Could not save cleanup schedule', error)
+        setScheduleMessage(page, 'Could not save the schedule. Check the Jellyfin server log.')
+    } finally {
+        updateScheduleFields(page)
+    }
+}
+
+async function runCleanupNow(page) {
+    const task = page._mediaCleanerTask
+    if (!task) return
+    syncExpandedRule(page)
+    if (page._mediaCleanerMigrationReviewRequired || rulesSnapshot(page._mediaCleanerRules) !== page._savedRulesSnapshot) {
+        setScheduleMessage(page, 'Save and review your rules before running cleanup.')
+        return
+    }
+    if (!window.confirm('Run Media Cleaner now? Matching files may be permanently deleted according to your saved rules.')) return
+
+    const button = page.querySelector('#MediaCleanerRunNow')
+    button.disabled = true
+    setScheduleMessage(page, 'Starting cleanup...')
+    try {
+        await ApiClient.fetch({
+            url: ApiClient.getUrl(`ScheduledTasks/Running/${encodeURIComponent(readResponseValue(task, 'Id', 'id'))}`),
+            type: 'POST',
+        })
+        await refreshCleanupTask(page)
+        setScheduleMessage(page, 'Cleanup started. Check Scheduled Tasks for its result.')
+    } catch (error) {
+        console.error('[MediaCleaner] Could not start cleanup', error)
+        setScheduleMessage(page, 'Could not start cleanup. Check the Jellyfin server log.')
+        updateRunNowButton(page)
+    }
 }
 
 function downloadConfigBackup(button) {

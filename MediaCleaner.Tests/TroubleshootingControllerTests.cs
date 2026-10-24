@@ -107,7 +107,14 @@ public class TroubleshootingControllerTests
             TimeOfDayTicks = TimeSpan.FromHours(22).Ticks,
         };
 
-        GetNextRunUtc(trigger, null, now).Should().Be(new DateTime(2026, 06, 27, 22, 00, 00, DateTimeKind.Utc));
+        var nowLocal = now.ToLocalTime();
+        var expectedLocal = nowLocal.Date.AddHours(22);
+        if (expectedLocal <= nowLocal)
+        {
+            expectedLocal = expectedLocal.AddDays(1);
+        }
+
+        GetNextRunUtc(trigger, null, now).Should().Be(expectedLocal.ToUniversalTime());
     }
 
     [Fact]
