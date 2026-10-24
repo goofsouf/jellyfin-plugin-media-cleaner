@@ -50,6 +50,9 @@ jobs:
       -
         name: Run Unit Tests
         run: dotnet test MediaCleaner.Tests/MediaCleaner.Tests.csproj -c Release
+      -
+        name: Run Web Task Test
+        run: node --test eng/general-task.test.mjs
 
   build:
     runs-on: ubuntu-latest

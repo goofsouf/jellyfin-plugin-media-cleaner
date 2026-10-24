@@ -357,7 +357,7 @@ function getMediaCleanerStatus() {
 const ticksPerMinute = 600000000
 
 async function getCleanupTask() {
-    const tasks = normalizeJsonResponse(await ApiClient.fetch({
+    const tasks = await normalizeJsonResponse(await ApiClient.fetch({
         url: ApiClient.getUrl('ScheduledTasks'),
         type: 'GET',
     }))

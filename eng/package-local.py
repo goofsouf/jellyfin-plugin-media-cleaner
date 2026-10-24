@@ -32,7 +32,7 @@ def main() -> None:
     version = f"{PROFILES['baseVersion']}.{build['versionPatchOffset']}"
     metadata = {
         "category": "General",
-        "changelog": "Add cleanup-now and editable interval or daily scheduling controls.",
+        "changelog": "Fix task lookup so cleanup and schedule controls enable after the Jellyfin response loads.",
         "description": "Rule-based media cleanup with manual and scheduled runs.",
         "guid": "607fee77-97eb-41fe-bf22-26844d99ffb0",
         "name": "Media Cleaner",

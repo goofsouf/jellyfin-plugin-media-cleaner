@@ -5,7 +5,7 @@ Automatically delete media according to configurable rules. Works with any media
 
 ## Installation
 
-This fork adds **Clean up now** and interval or daily scheduling to the Rules page. For Jellyfin 12.1, download the [fork release ZIP](https://github.com/goofsouf/jellyfin-plugin-media-cleaner/releases/tag/v3.7.1-local.1) and install it manually. It uses the same plugin ID as upstream Media Cleaner, so keep only one copy installed. The upstream plugin repository does not deliver this fork's changes. See [FORK.md](FORK.md) for build and installation notes.
+This fork adds **Clean up now** and interval or daily scheduling to the Rules page. For Jellyfin 12.1, download the [fork release ZIP](https://github.com/goofsouf/jellyfin-plugin-media-cleaner/releases/tag/v3.7.2-local.1) and install it manually. It uses the same plugin ID as upstream Media Cleaner, so keep only one copy installed. The upstream plugin repository does not deliver this fork's changes. See [FORK.md](FORK.md) for build and installation notes.
 
 ## Configuration
 
