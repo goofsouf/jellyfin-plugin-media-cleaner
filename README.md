@@ -5,7 +5,7 @@ Automatically delete media according to configurable rules. Works with any media
 
 ## Installation
 
-Add repository with my plugins from [jellyfin-plugin-repo](https://github.com/shemanaev/jellyfin-plugin-repo).
+This fork adds **Clean up now** and interval or daily scheduling to the Rules page. For Jellyfin 12.1, download the [fork release ZIP](https://github.com/goofsouf/jellyfin-plugin-media-cleaner/releases/tag/v3.7.1-local.1) and install it manually. It uses the same plugin ID as upstream Media Cleaner, so keep only one copy installed. The upstream plugin repository does not deliver this fork's changes. See [FORK.md](FORK.md) for build and installation notes.
 
 ## Configuration
 
@@ -60,7 +60,7 @@ Saving Media Cleaner settings does not delete anything. Deletion happens only wh
 
 Saving Leaving Soon settings refreshes its collection but does not delete media. The **Media Cleaner Leaving Soon refresh** task also updates the collection every six hours by default.
 
-The cleanup task runs once per day by default. Its schedule, manual runs and enabled state are controlled from Jellyfin's **Scheduled Tasks** page.
+The cleanup task runs once per day by default. This fork lets you start it immediately or set an interval or daily time on the Rules page. Jellyfin's **Scheduled Tasks** page remains available for weekly or multiple triggers.
 
 On each task run, Media Cleaner loads the current rules, scans the Jellyfin library, builds a cleanup plan, applies protection rules and cascade safety checks, then executes the planned delete operations. Media currently being watched is always protected, including from season and series cascades. If no cleanup rule matches, no item is deleted.
 
